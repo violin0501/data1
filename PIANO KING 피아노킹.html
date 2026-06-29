@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><script async src="https://www.googletagmanager.com/gtag/js?id=G-5YW0T2C109"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-5YW0T2C109');
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PIANO KING 피아노킹</title>
+    <style>
+        /* 터치 및 모바일 최적화 */
+        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; outline: none; touch-action: manipulation; }
+        
+        body { 
+            font-family: 'Arial', sans-serif; 
+            background-color: #0f1115; 
+            color: #f1f2f6; 
+            display: flex; 
+            flex-direction: column; 
+            width: 100vw; 
+            height: 100dvh; 
+            overflow: hidden; 
+        }
+
+        /* Tap to Start 시작 화면 */
+        #start-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100vw; height: 100dvh;
+            background-color: #1e272e;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 999999;
+            cursor: pointer;
+        }
+        #start-overlay h1 { font-size: 40px; color: #1dd1a1; margin-bottom: 20px; text-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        #start-overlay p { font-size: 20px; color: #f5f6fa; background: #2f3542; padding: 10px 30px; border-radius: 30px; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(29, 209, 161, 0.7); } 50% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(29, 209, 161, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(29, 209, 161, 0); } }
+
+        /* 메인 UI 레이아웃 */
+        #app-container { display: none; flex-direction: column; height: 100%; width: 100%; }
+
+        /* 헤더 컨트롤 바 */
+        #controls-bar {
+            flex: 0 0 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 15px;
+            background-color: #1a1d24;
+            border-bottom: 2px solid #333;
+            z-index: 10;
+        }
+        
+        .header-left { display: flex; align-items: baseline; gap: 8px; }
+        .header-left h1 { font-size: 18px; color: #1dd1a1; margin: 0; }
+        
+        /* 홈 링크 스타일 */
+        .home-link {
+            color: #a4b0be;
+            font-size: 14px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: color 0.2s;
+        }
+        .home-link:active { color: #1dd1a1; }
+        
+        .header-right { display: flex; align-items: center; gap: 15px; }
+        
+        .volume-control { display: flex; align-items: center; gap: 5px; background: #1e242b; padding: 4px 10px; border-radius: 8px; }
+        .volume-control input[type="range"] { width: 80px; accent-color: #1dd1a1; }
+        .volume-label { font-size: 13px; color: #a4b0be; font-weight: bold; width: 30px; text-align: right; }
+
+        .octave-controls { display: flex; align-items: center; gap: 8px; background: #1e242b; padding: 4px 10px; border-radius: 8px; }
+        .octave-btn { background: #374251; border: none; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: bold; }
+        .octave-btn:active { background: #1dd1a1; color: #111; }
+        .octave-label { color: #a4b0be; font-size: 14px; font-weight: bold; width: 40px; text-align: center; }
+
+        /* 악기 선택 패널 */
+        #instrument-panel {
+            flex: 0 0 auto;
+            padding: 10px 15px;
+            background-color: #2f3542;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+            gap: 8px;
+            overflow-y: auto;
+            max-height: 35vh;
+            border-bottom: 4px solid #1a1d24;
+        }
+
+        .inst-btn { 
+            padding: 8px 5px; 
+            font-size: 13px; 
+            font-weight: bold; 
+            border-radius: 8px; 
+            border: 2px solid transparent; 
+            background-color: #1e242b; 
+            color: #a4b0be; 
+            cursor: pointer; 
+            transition: 0.1s; 
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .inst-btn.active { background-color: #1dd1a1; color: #222; border-color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+
+        /* 피아노 건반 영역 */
+        #piano-container {
+            flex: 1;
+            position: relative;
+            background-color: #1e272e;
+            padding: 10px;
+            display: flex;
+            align-items: stretch;
+            touch-action: none;
+        }
+        
+        .white-keys-container { 
+            display: flex; 
+            width: 100%; 
+            height: 100%; 
+            position: relative; 
+            margin: 0 auto; 
+        }
+        
+        .key-wrapper { flex: 1; position: relative; }
+        
+        /* 버그 수정: 건반을 누를 때 물리적인 이동(transform)을 제거하여 슬라이드 인식 오류 해결 */
+        .white-key { 
+            width: 100%; 
+            height: 100%; 
+            background-color: #f5f6fa; 
+            border: 1px solid #dcdde1; 
+            border-right: none; 
+            border-radius: 0 0 8px 8px; 
+            position: relative; 
+            z-index: 1; 
+            box-shadow: 0 6px 0 #bdc3c7; 
+        }
+        .key-wrapper:last-child .white-key { border-right: 1px solid #dcdde1; }
+        .white-key.pressed { 
+            background-color: #e8ecef; 
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.2); 
+        }
+        
+        .black-key { 
+            position: absolute; 
+            top: 0; 
+            left: 100%; 
+            transform: translateX(-50%); /* 중요: 위치 중앙 정렬 고정 */
+            width: 65%; 
+            height: 60%; 
+            background-color: #2f3640; 
+            border-radius: 0 0 6px 6px; 
+            z-index: 10; 
+            box-shadow: 2px 2px 4px rgba(0,0,0,0.5); 
+            pointer-events: auto; 
+            border-bottom: 3px solid #1a1d24;
+        }
+        .black-key.pressed { 
+            background-color: #000; 
+            border: 1px solid #1dd1a1; 
+            border-bottom: 3px solid #1a1d24; 
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.6); 
+            /* transform: translateX(-50%)를 덮어쓰지 않도록 수정 */
+        }
+        
+        .c-label { 
+            position: absolute; 
+            bottom: 10px; 
+            left: 0; 
+            right: 0; 
+            text-align: center; 
+            color: #ff4757; 
+            font-size: 14px; 
+            font-weight: 900; 
+            pointer-events: none; 
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="start-overlay">
+        <h1>🎹 PIANO KING</h1>
+        <p>Tap to Start</p>
+    </div>
+
+    <div id="app-container">
+        <div id="controls-bar">
+            <div class="header-left">
+                <h1>🎹 PIANO KING</h1>
+                <a href="/" class="home-link">| KingsMath.com</a>
+            </div>
+            <div class="header-right">
+                <div class="volume-control" title="Volume">
+                    <input type="range" id="vol-slider" min="0" max="100" value="100">
+                    <span class="volume-label" id="vol-lbl">100</span>
+                </div>
+                <div class="octave-controls">
+                    <button class="octave-btn" onclick="shiftOctave(-1)">◀ Oct</button>
+                    <span class="octave-label" id="octave-display">Base</span>
+                    <button class="octave-btn" onclick="shiftOctave(1)">Oct ▶</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="instrument-panel"></div>
+
+        <div id="piano-container">
+            <div class="white-keys-container" id="piano-keys"></div>
+        </div>
+    </div>
+
+<script>
+    // 우클릭 및 제스처 방지
+    document.addEventListener('contextmenu', event => event.preventDefault());
+    document.addEventListener('gesturestart', event => event.preventDefault());
+
+    // --- 앱 초기화 및 화면 제어 ---
+    const startOverlay = document.getElementById('start-overlay');
+    const appContainer = document.getElementById('app-container');
+
+    startOverlay.addEventListener('click', async () => {
+        try {
+            if (document.documentElement.requestFullscreen) {
+                await document.documentElement.requestFullscreen();
+            }
+            if (screen.orientation && screen.orientation.lock) {
+                await screen.orientation.lock('landscape');
+            }
+        } catch (err) {
+            console.log("Orientation lock failed or not supported:", err);
+        }
+
+        initAudio();
+        startOverlay.style.display = 'none';
+        appContainer.style.display = 'flex';
+    });
+
+
+    // --- 오디오 엔진 설정 ---
+    const midiFreqCache = new Float32Array(128);
+    for(let i=0; i<128; i++) midiFreqCache[i] = 440 * Math.pow(2, (i - 69) / 12);
+    function getNoteFreq(midi) { return midiFreqCache[midi]; }
+
+    let audioCtx = null;
+    let masterGainNode = null;
+
+    function initAudio() { 
+        if (!audioCtx) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            try { audioCtx = new AudioContext({ latencyHint: 'interactive' }); } 
+            catch(e) { audioCtx = new AudioContext(); }
+            masterGainNode = audioCtx.createGain(); 
+            masterGainNode.gain.value = 1.0; 
+            masterGainNode.connect(audioCtx.destination);
+        }
+        if (audioCtx.state === 'suspended') audioCtx.resume(); 
+    }
+
+    // --- 악기 데이터 (오카리나 포함 21가지) ---
+    const instruments = [
+        { id: 'piano', name: 'Acoustic Piano', type: 'triangle', attack: 0.005, decay: 2.0, sustain: 0.1, release: 0.4, filter: 2500 },
+        { id: 'epiano', name: 'E-Piano', type: 'sine', attack: 0.01, decay: 1.5, sustain: 0.2, release: 0.5, filter: 1500 },
+        { id: 'marimba', name: 'Marimba', type: 'sine', attack: 0.005, decay: 0.3, sustain: 0.0, release: 0.1, filter: 1000 },
+        { id: 'vibraphone', name: 'Vibraphone', type: 'sine', attack: 0.02, decay: 2.0, sustain: 0.1, release: 1.5, filter: 1200 },
+        { id: 'organ', name: 'Rock Organ', type: 'square', attack: 0.05, decay: 0.1, sustain: 0.8, release: 0.1, filter: 800 },
+        { id: 'accordion', name: 'Accordion', type: 'square', attack: 0.1, decay: 0.2, sustain: 0.8, release: 0.2, filter: 2000 },
+        { id: 'ocarina', name: 'Ocarina', type: 'triangle', attack: 0.05, decay: 0.1, sustain: 0.9, release: 0.3, filter: 2000 },
+        { id: 'synth', name: 'Synth Brass', type: 'sawtooth', attack: 0.05, decay: 0.5, sustain: 0.4, release: 0.3, filter: 1800 },
+        { id: 'leadsynth', name: 'Lead Synth', type: 'sawtooth', attack: 0.01, decay: 0.3, sustain: 0.5, release: 0.2, filter: 4000 },
+        { id: 'padsynth', name: 'Pad Synth', type: 'sine', attack: 0.2, decay: 1.0, sustain: 0.8, release: 0.8, filter: 800 },
+        { id: 'strings', name: 'Strings', type: 'sawtooth', attack: 0.3, decay: 0.5, sustain: 0.8, release: 0.8, filter: 2000 },
+        { id: 'choir', name: 'Choir Aahs', type: 'sine', attack: 0.4, decay: 0.5, sustain: 0.8, release: 0.8, filter: 1000 },
+        { id: 'flute', name: 'Flute', type: 'triangle', attack: 0.15, decay: 0.1, sustain: 0.8, release: 0.4, filter: 1500 },
+        { id: 'clarinet', name: 'Clarinet', type: 'square', attack: 0.1, decay: 0.1, sustain: 0.8, release: 0.2, filter: 1200 },
+        { id: 'oboe', name: 'Oboe', type: 'sawtooth', attack: 0.05, decay: 0.1, sustain: 0.9, release: 0.2, filter: 2200 },
+        { id: 'brass', name: 'Brass Section', type: 'sawtooth', attack: 0.08, decay: 0.2, sustain: 0.7, release: 0.3, filter: 3000 },
+        { id: 'guitar', name: 'Acoustic Guitar', type: 'sawtooth', attack: 0.01, decay: 0.8, sustain: 0.1, release: 0.5, filter: 2500 },
+        { id: 'pluck', name: 'Pluck Synth', type: 'square', attack: 0.005, decay: 0.15, sustain: 0.0, release: 0.1, filter: 1200 },
+        { id: 'harp', name: 'Harp', type: 'triangle', attack: 0.01, decay: 1.5, sustain: 0, release: 1.2, filter: 1800 },
+        { id: 'musicbox', name: 'Music Box', type: 'sine', attack: 0.001, decay: 0.5, sustain: 0, release: 0.8, filter: 3000 },
+        { id: 'bass', name: 'Fretless Bass', type: 'triangle', attack: 0.02, decay: 0.5, sustain: 0.6, release: 0.2, filter: 400, octaveOffset: -1 }
+    ];
+
+    let currentInstId = 'piano';
+    let currentOctaveOffset = 0;
+
+    const activeTouches = {}; 
+
+    // --- 악기 버튼 렌더링 ---
+    function renderInstrumentButtons() {
+        const panel = document.getElementById('instrument-panel');
+        panel.innerHTML = '';
+        instruments.forEach(inst => {
+            const btn = document.createElement('button');
+            btn.className = `inst-btn ${inst.id === currentInstId ? 'active' : ''}`;
+            btn.innerText = inst.name;
+            btn.onclick = () => {
+                initAudio();
+                panel.querySelectorAll('.inst-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentInstId = inst.id;
+            };
+            panel.appendChild(btn);
+        });
+    }
+
+    // --- 오디오 플레이 함수 ---
+    function playNoteRaw(midi, volumeScale = 1.0) {
+        if (!audioCtx) return null;
+        const inst = instruments.find(i => i.id === currentInstId);
+        const osc = audioCtx.createOscillator(); 
+        const gain = audioCtx.createGain(); 
+        const filter = audioCtx.createBiquadFilter();
+        
+        osc.type = inst.type; 
+        let freq = getNoteFreq(midi); 
+        if (inst.octaveOffset) freq = freq / Math.pow(2, Math.abs(inst.octaveOffset));
+        
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime); 
+        filter.type = 'lowpass'; 
+        filter.frequency.value = inst.filter;
+        
+        const now = audioCtx.currentTime; 
+        gain.gain.setValueAtTime(0, now); 
+        
+        const maxVol = 0.4 * volumeScale;
+        gain.gain.linearRampToValueAtTime(maxVol, now + inst.attack); 
+        gain.gain.linearRampToValueAtTime(maxVol * inst.sustain, now + inst.attack + inst.decay);
+        
+        osc.connect(filter); 
+        filter.connect(gain); 
+        gain.connect(masterGainNode); 
+        osc.start(); 
+        return { osc, gain, inst };
+    }
+    
+    function stopNoteRaw(nodeObj) {
+        if (!nodeObj) return; 
+        const { osc, gain, inst } = nodeObj; 
+        const now = audioCtx.currentTime;
+        gain.gain.cancelScheduledValues(now); 
+        gain.gain.setValueAtTime(gain.gain.value, now); 
+        gain.gain.linearRampToValueAtTime(0, now + inst.release); 
+        osc.stop(now + inst.release);
+    }
+
+    // --- 건반 렌더링 로직 ---
+    function renderPiano() {
+        const container = document.getElementById('piano-keys');
+        container.innerHTML = '';
+        let wrapper = null;
+        
+        const baseStartMidi = 53; // F3
+        const baseEndMidi = 76;   // E5
+        
+        const startMidi = baseStartMidi + (currentOctaveOffset * 12);
+        const endMidi = baseEndMidi + (currentOctaveOffset * 12);
+        
+        for (let midi = startMidi; midi <= endMidi; midi++) {
+            const isBlack = [1, 3, 6, 8, 10].includes(midi % 12);
+            const keyDiv = document.createElement('div'); 
+            keyDiv.dataset.midi = midi;
+            
+            if (midi === 60) keyDiv.innerHTML = '<div class="c-label">C4</div>';
+            if (midi === 72) keyDiv.innerHTML = '<div class="c-label" style="color:#feca57;">C5</div>';
+
+            if (!isBlack) {
+                wrapper = document.createElement('div'); 
+                wrapper.className = 'key-wrapper'; 
+                keyDiv.className = 'white-key'; 
+                wrapper.appendChild(keyDiv); 
+                container.appendChild(wrapper);
+            } else { 
+                keyDiv.className = 'black-key'; 
+                if (wrapper) wrapper.appendChild(keyDiv); 
+            }
+        }
+    }
+
+    // --- 옥타브 이동 함수 ---
+    window.shiftOctave = function(dir) {
+        currentOctaveOffset += dir;
+        const display = document.getElementById('octave-display');
+        display.innerText = currentOctaveOffset === 0 ? 'Base' : (currentOctaveOffset > 0 ? '+' + currentOctaveOffset : currentOctaveOffset);
+        renderPiano();
+    }
+
+    // --- 볼륨 조절 이벤트 ---
+    const volSlider = document.getElementById('vol-slider');
+    const volLabel = document.getElementById('vol-lbl');
+    volSlider.addEventListener('input', (e) => {
+        volLabel.innerText = e.target.value;
+    });
+
+    // --- 건반 터치 & 슬라이드(글리산도) 이벤트 처리 ---
+    const pianoContainer = document.getElementById('piano-container');
+    
+    pianoContainer.addEventListener('pointerdown', (e) => {
+        initAudio(); 
+        e.preventDefault(); 
+        const target = e.target.closest('.black-key, .white-key');
+        
+        if (target && target.dataset.midi) {
+            target.classList.add('pressed'); 
+            const midi = parseInt(target.dataset.midi); 
+            const vol = volSlider.value / 100;
+            
+            const node = playNoteRaw(midi, vol);
+            activeTouches[e.pointerId] = { element: target, node: node };
+        }
+    });
+
+    pianoContainer.addEventListener('pointermove', (e) => {
+        if (!activeTouches[e.pointerId]) return; 
+        e.preventDefault();
+        
+        const elemBelow = document.elementFromPoint(e.clientX, e.clientY);
+        const target = elemBelow ? elemBelow.closest('.black-key, .white-key') : null;
+        const currentTouch = activeTouches[e.pointerId];
+
+        if (target && target.dataset.midi) {
+            if (target !== currentTouch.element) {
+                if (currentTouch.node) stopNoteRaw(currentTouch.node);
+                if (currentTouch.element) currentTouch.element.classList.remove('pressed');
+
+                target.classList.add('pressed');
+                const midi = parseInt(target.dataset.midi);
+                const vol = volSlider.value / 100;
+                const newNode = playNoteRaw(midi, vol);
+                
+                activeTouches[e.pointerId] = { element: target, node: newNode };
+            }
+        } else {
+            if (currentTouch.node) stopNoteRaw(currentTouch.node);
+            if (currentTouch.element) currentTouch.element.classList.remove('pressed');
+            activeTouches[e.pointerId] = { element: null, node: null };
+        }
+    });
+
+    function handlePointerUp(e) {
+        const currentTouch = activeTouches[e.pointerId];
+        if (currentTouch) {
+            if (currentTouch.node) stopNoteRaw(currentTouch.node);
+            if (currentTouch.element) currentTouch.element.classList.remove('pressed');
+            delete activeTouches[e.pointerId];
+        }
+        const target = e.target.closest('.black-key, .white-key');
+        if (target) target.classList.remove('pressed');
+    }
+
+    pianoContainer.addEventListener('pointerup', handlePointerUp);
+    pianoContainer.addEventListener('pointercancel', handlePointerUp);
+
+    // --- 초기 실행 ---
+    window.onload = () => {
+        renderInstrumentButtons();
+        renderPiano();
+    };
+</script>
+</body>
+</html>
